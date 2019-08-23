@@ -16,17 +16,24 @@ from numpy.linalg import inv
 args = sys.argv
 imgOrg =  np.zeros((5,5), np.uint8)
 
+
+"""
+Main method. Executes the corresponding function according to the user input.
+The user can choose either to extract features or corners from an image.
+If a path to an image file is not specified, the program will use the camera from
+the computer to take a picture and process it.
+"""
 def run():
     print("Please insert a command. Press 'help' to see the options")
     value = raw_input("prompt: ")
     value_list = value.split()
     if((len(value_list)==1) and value_list[0]=='corner1'):
         cornerDetector1(getImageFromCamera())
-    if(len(value_list)==3and value_list[0]=='corner1'):
+    if(len(value_list)==3 and value_list[0]=='corner1'):
         cornerDetector1(value_list[1])
     if((len(value_list)==1) and value_list[0]=='features'):
         features(getImageFromCamera(),getImageFromCamera())
-    if(len(value_list)==3and value_list[0]=='features'):
+    if(len(value_list)==3 and value_list[0]=='features'):
         features(value_list[1], value_list[2])
     
     while(1):
@@ -34,13 +41,26 @@ def run():
              h()
          if value == 'q':
              break
-         
+"""
+Loads image from file
+Args:
+    imageName: Name of the file to load
+Return:
+    Image object in color scale
+"""        
 def getImage(imageName):
     
     global imgOrg
     imgOrg = cv2.imread(imageName)
     return imgOrg
 
+"""
+Loads image from camera
+Args:
+    None
+Return:
+    Image object in color scale
+"""
 def getImageFromCamera():
     global cam, imgOrg
     cam = 1
@@ -53,13 +73,26 @@ def getImageFromCamera():
         imgOrg = frame
     return imgOrg
 
+"""
+Converts image to gray scale
+Args:
+    image: Image object in color scale
+Return:
+    Image object in gray scale
+"""
 def grayScale(image):
     global imgOrg
     imgOrg = image.copy()
     imgGray = cv2.cvtColor(imgOrg, cv2.COLOR_RGB2GRAY)
     return imgGray
 
-    
+"""
+Resizes the image received as input to half its size.
+Args:
+    image: Image object to resize
+Return:
+    Image object resized
+"""    
 def scaleImage(image):
     global imgOrg
 
@@ -70,9 +103,20 @@ def scaleImage(image):
         img = cv2.pyrDown(img)
     return img 
 
+
 def nothing():
     pass
 
+"""
+Detects corners for an input image. First resizes it and changes it to gray scale.
+Uses Harris Algorithm to perform the corner detection. The parameters of the algorithm can be modified manually by 
+the user using a trackbar (ksize, window size, k and threshold.)
+Closes the window when the user presses 'q'
+Args:
+    image1: Image to perform corner detection
+Returns:
+    Nothing
+"""
 def cornerDetector1(image1):
     
     global imgMod, imgOrg
@@ -88,7 +132,6 @@ def cornerDetector1(image1):
     img1 = img1.copy()
     
     img1 = grayScale(img1)
-    
     
     cv2.namedWindow('Corner Detection 1',0)
 
@@ -117,7 +160,27 @@ def cornerDetector1(image1):
             cv2.destroyAllWindows()
             #run()
             break
-        
+"""
+Implementation of the Harris algorithm for corner detection. The algorithm first converts the
+image to gray scale, and calculates the spatial derivative using the Sobel function from OpenCV
+Next we will construct the structure tensor using the spatial derivatives previously calculated. 
+Then compute the smallest eigenvalue of the structure tensor with an approximation equation.
+Finally  we find the local maxima as corners within the window which is a 3 by 3 filter
+in order to pick up the optimal values to indicate corners.
+See https://en.wikipedia.org/wiki/Harris_Corner_Detector#Process_of_Harris_Corner_Detection_Algorithm[4][5][6]
+for more information.
+
+Args:
+    ksize...........size of the extended Sobel kernel; it must be 1, 3, 5, or 7.
+    image...........Image that will be processed for corner detection
+    windowSize......Size of the window to compute corner detection
+    k...............constant used for Harris response calculation. Its value can be
+    chosen between a range of set values.
+    threshold.......The coefficient obtained will be compared to this threshold ton
+    determine if the point is considered as a corner or not.
+Return:
+    img: The image with the corners highlighted with a rectangle.
+"""      
 def harrisAlgth(ksize, image, windowSize, k, threshold):
     global imgMod, imgOrg
     
@@ -154,25 +217,31 @@ def harrisAlgth(ksize, image, windowSize, k, threshold):
 
             Corrxx = compIxx.sum()
             Corrxy = compIxy.sum()
-         #   Corryx = Corrxy
             Corryy = compIyy.sum()
             
-         
-
             det = (Corrxx*Corryy) - (Corrxy*Corrxy)
             tr = Corrxx + Corryy
             C_c = det - k*tr*tr
             
             if C_c > (threshold):
-                print("Threshold")
                 corners.append([y,x,C_c])
                 
                 cv2.rectangle(img,(x-10,y-10),(x+10,y+10),(0,0,255),2,5)
        
-    print("Out")           
     return img
 
-
+"""
+Extracts features from two images and finds matches between them. First reshapes the images and changes them to gray scale.
+Extracts features using SIFT algorithm: https://docs.opencv.org/trunk/da/df5/tutorial_py_sift_intro.html
+Matches features between images using OpenCV 'FlannBasedMatcher' function: https://docs.opencv.org/3.4/d5/d6f/tutorial_feature_flann_matcher.html
+Two points are considered a match if their distance is below a threshold. If the number of matches is over a threshold, 
+the two images are considered the same object and the function will plot the polylines between matches.
+Args:
+    image1: Image to extract features from
+    image2: Same as image1 but from a different angle
+Return:
+    gray scale image containing the two images used as input and their matches.
+"""
 def features(image1, image2):
     COUNT = 8
     
@@ -207,8 +276,6 @@ def features(image1, image2):
     
     kp1, des1 = sift.detectAndCompute(image1, None)
     kp2, des2 = sift.detectAndCompute(image2, None)
-    
-    
     
     f = cv2.FlannBasedMatcher(index, search)
     matchPoints = f.knnMatch(des1,des2,k=2)
@@ -248,7 +315,10 @@ def features(image1, image2):
     cv2.waitKey(0)
     cv2.destroyAllWindows() 
     return img3
-
+    
+"""
+User manual. Displays to the user the input options
+"""
 def h():
     print("Program description: ")
     print("q: quit a function")
